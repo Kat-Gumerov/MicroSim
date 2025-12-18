@@ -1,3 +1,4 @@
+# Unity folders
 [Ll]ibrary/
 [Tt]emp/
 [Oo]bj/
@@ -6,11 +7,18 @@
 [Ll]ogs/
 [Uu]ser[Ss]ettings/
 
+# Visual Studio / Rider / VS Code
+.vscode/
+.idea/
 *.csproj
 *.sln
 *.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
 *.tmp
 
-.vscode/
-.idea/
+# OS files
 .DS_Store
+Thumbs.db
