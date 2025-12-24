@@ -3,74 +3,68 @@ using UnityEngine;
 public class SystemModel : MonoBehaviour
 {
     [Header("True System Values")]
-    public float pressure = 50f;
-    public float temperature = 70f;
-    public float flow = 25f;
+    public float pressure;
+    public float temperature;
+    public float flow;
 
     [Header("Normal (Green) Ranges")]
-    public Vector2 pressureRange = new Vector2(40f, 60f);
-    public Vector2 temperatureRange = new Vector2(65f, 75f);
+    public Vector2 pressureRange = new Vector2(40f, 50f);
+    public Vector2 temperatureRange = new Vector2(30f, 40f);
     public Vector2 flowRange = new Vector2(20f, 30f);
-
-    [Header("Baseline Drift (Normal Operation)")]
-    public float pressureDrift = 0.3f;
-    public float temperatureDrift = 0.2f;
-    public float flowDrift = 0.25f;
 
     [Header("Operator Controls (0–1)")]
     [Range(0f, 1f)] public float pumpSpeed = 0.5f;
     [Range(0f, 1f)] public float valvePosition = 0.5f;
 
     [Header("System Mode")]
-    public bool manualMode = false;
+    public bool manualMode = true;
 
-    void Update()
+    private void Awake()
+    {
+        pumpSpeed = 0.5f;
+        valvePosition = 0.5f;
+
+        pressure = 45f;
+        flow = 25f;
+        temperature = 35f;
+    }
+
+    private void Update()
     {
         float dt = Time.deltaTime;
 
-        // --- Natural system drift (system is always "alive") ---
-        pressure += pressureDrift * dt;
-        temperature += temperatureDrift * dt;
-        flow += flowDrift * dt;
+        float baseFlow = Mathf.Lerp(5f, 45f, valvePosition);
+        float pumpFlowBoost = Mathf.Lerp(-2f, 5f, pumpSpeed);
+        float targetFlow = baseFlow + pumpFlowBoost;
 
-        // --- Control influence ---
-        // Pump speed increases flow and pressure
-        flow += Mathf.Lerp(-0.4f, 0.6f, pumpSpeed) * dt;
-        pressure += Mathf.Lerp(-0.3f, 0.5f, pumpSpeed) * dt;
+        float pumpPressure = Mathf.Lerp(10f, 48f, pumpSpeed);
+        float reliefFactor = Mathf.Lerp(1.0f, 0.5f, valvePosition);
+        float targetPressure = pumpPressure * reliefFactor;
 
-        // Valve position relieves pressure but can affect flow
-        flow += Mathf.Lerp(-0.2f, 0.5f, valvePosition) * dt;
-        pressure += Mathf.Lerp(0.3f, -0.4f, valvePosition) * dt;
+        float pumpHeat = Mathf.Lerp(20f, 48f, pumpSpeed);
+        float cooling = Mathf.Lerp(0f, 8f, valvePosition);
+        float targetTemp = pumpHeat - cooling;
 
-        // --- Automatic stabilization (AUTO mode only) ---
+        pressure = Mathf.Lerp(pressure, targetPressure, 3f * dt);
+        flow = Mathf.Lerp(flow, targetFlow, 3f * dt);
+        temperature = Mathf.Lerp(temperature, targetTemp, 3f * dt);
+
         if (!manualMode)
         {
-            pressure = Mathf.Lerp(
-                pressure,
-                (pressureRange.x + pressureRange.y) * 0.5f,
-                0.2f * dt
-            );
+            float safeP = (pressureRange.x + pressureRange.y) * 0.5f;
+            float safeT = (temperatureRange.x + temperatureRange.y) * 0.5f;
+            float safeF = (flowRange.x + flowRange.y) * 0.5f;
 
-            temperature = Mathf.Lerp(
-                temperature,
-                (temperatureRange.x + temperatureRange.y) * 0.5f,
-                0.1f * dt
-            );
-
-            flow = Mathf.Lerp(
-                flow,
-                (flowRange.x + flowRange.y) * 0.5f,
-                0.2f * dt
-            );
+            pressure = Mathf.Lerp(pressure, safeP, 0.5f * dt);
+            temperature = Mathf.Lerp(temperature, safeT, 0.3f * dt);
+            flow = Mathf.Lerp(flow, safeF, 0.5f * dt);
         }
 
-        // --- Safety clamps (prototype guardrails) ---
-        pressure = Mathf.Clamp(pressure, 0f, 100f);
-        temperature = Mathf.Clamp(temperature, 0f, 100f);
-        flow = Mathf.Clamp(flow, 0f, 100f);
+        pressure = Mathf.Clamp(pressure, 0f, 50f);
+        temperature = Mathf.Clamp(temperature, 0f, 50f);
+        flow = Mathf.Clamp(flow, 0f, 50f);
     }
 
-    // --- Helper methods for UI / scoring / guidance ---
     public bool PressureInRange()
     {
         return pressure >= pressureRange.x && pressure <= pressureRange.y;
