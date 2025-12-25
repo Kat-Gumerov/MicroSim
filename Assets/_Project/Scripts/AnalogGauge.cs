@@ -19,6 +19,10 @@ public class AnalogGauge : MonoBehaviour
     [SerializeField] private float minValue = 0f;
     [SerializeField] private float maxValue = 50f;
 
+    [Header("Green Range (normal)")]
+    [SerializeField] private float greenMin = 10f;
+    [SerializeField] private float greenMax = 40f;
+
     [Header("Needle Rotation (Y axis)")]
     [SerializeField] private float minAngleOffset = -20f;
     [SerializeField] private float maxAngleOffset = 20f;
@@ -30,6 +34,9 @@ public class AnalogGauge : MonoBehaviour
     private float baseY;
     private bool initialized = false;
 
+    // runtime value we expose to other scripts
+    private float currentValue;
+
     private void Awake()
     {
         baseY = transform.localEulerAngles.y;
@@ -39,6 +46,7 @@ public class AnalogGauge : MonoBehaviour
     {
         if (system == null) return;
 
+        // read from SystemModel
         float rawValue = gaugeType switch
         {
             GaugeType.Pressure => system.pressure,
@@ -49,6 +57,9 @@ public class AnalogGauge : MonoBehaviour
             _ => 0f
         };
 
+        currentValue = rawValue;
+
+        // map to needle rotation
         float t = Mathf.InverseLerp(minValue, maxValue, rawValue);
         float targetOffset = Mathf.Lerp(minAngleOffset, maxAngleOffset, t);
 
@@ -70,4 +81,19 @@ public class AnalogGauge : MonoBehaviour
         e.y = baseY + currentAngleOffset;
         transform.localEulerAngles = e;
     }
+
+    // ===== API used by Scenario B =====
+
+    public float GetCurrentValue()
+    {
+        return currentValue;
+    }
+
+    public bool IsInGreenRange()
+    {
+        return currentValue >= greenMin && currentValue <= greenMax;
+    }
+
+    // public read-only access to the enum for logging
+    public GaugeType GaugeTypeKind => gaugeType;
 }

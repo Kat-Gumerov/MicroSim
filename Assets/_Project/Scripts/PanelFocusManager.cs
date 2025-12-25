@@ -12,10 +12,17 @@ public class PanelFocusManager : MonoBehaviour
     [Header("Optional: disable player controls")]
     [SerializeField] private MonoBehaviour[] disableWhileInPanelMode;
 
+    [Header("Panel UI")]
+    [SerializeField] private GameObject panelUI;   // <-- drag PanelUI here in Inspector
+
     public bool InPanelMode { get; private set; }
 
     void Start()
     {
+        // make sure UI is hidden at start
+        if (panelUI != null)
+            panelUI.SetActive(false);
+
         EnterPlayerMode();
     }
 
@@ -43,6 +50,10 @@ public class PanelFocusManager : MonoBehaviour
         foreach (var b in disableWhileInPanelMode)
             if (b != null) b.enabled = false;
 
+        // show the panel UI
+        if (panelUI != null)
+            panelUI.SetActive(true);
+
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }
@@ -62,6 +73,10 @@ public class PanelFocusManager : MonoBehaviour
 
         foreach (var b in disableWhileInPanelMode)
             if (b != null) b.enabled = true;
+
+        // hide the panel UI
+        if (panelUI != null)
+            panelUI.SetActive(false);
 
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
