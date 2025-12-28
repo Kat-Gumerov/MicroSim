@@ -17,3 +17,4 @@ public class PanelLabelVisibility : MonoBehaviour
             child.gameObject.SetActive(show);
     }
 }
+
