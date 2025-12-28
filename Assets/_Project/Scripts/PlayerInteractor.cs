@@ -7,7 +7,7 @@ public class PlayerInteractor : MonoBehaviour
     [SerializeField] private Camera panelCamera;   // drag PanelCamera here
     [SerializeField] private LayerMask interactMask = ~0;
 
-    private Camera playerCam;
+    Camera playerCam;
 
     void Awake()
     {
@@ -16,20 +16,47 @@ public class PlayerInteractor : MonoBehaviour
 
     void Update()
     {
-        if (!Input.GetMouseButtonDown(0)) return;
-
+        // Pick which camera to use (player vs panel)
         Camera camToUse = (focusManager != null && focusManager.InPanelMode && panelCamera != null)
             ? panelCamera
             : playerCam;
 
         Ray ray = camToUse.ScreenPointToRay(Input.mousePosition);
 
+        // Do a raycast every frame for hover + click
         if (Physics.Raycast(ray, out RaycastHit hit, interactDistance, interactMask, QueryTriggerInteraction.Collide))
         {
-            Debug.Log("Clicked: " + hit.collider.gameObject.name);
+            // ---------- HOVER HINT ----------
+            string hintText = null;
 
-            var interactable = hit.collider.GetComponentInParent<IInteractable>();
-            if (interactable != null) interactable.Interact();
+            // KnobControl has a public string hint
+            if (hit.collider.TryGetComponent(out KnobControl knob))
+            {
+                hintText = knob.hint;
+            }
+            else if (hit.collider.GetComponentInParent<KnobControl>() is KnobControl parentKnob)
+            {
+                hintText = parentKnob.hint;
+            }
+
+            if (TooltipUI.Instance != null)
+                TooltipUI.Instance.Show(hintText);
+
+            // ---------- CLICK INTERACTION ----------
+            if (Input.GetMouseButtonDown(0))
+            {
+                Debug.Log("Clicked: " + hit.collider.gameObject.name);
+
+                var interactable = hit.collider.GetComponentInParent<IInteractable>();
+                if (interactable != null)
+                    interactable.Interact();
+            }
+        }
+        else
+        {
+            // Nothing under the cursor → hide tooltip
+            if (TooltipUI.Instance != null)
+                TooltipUI.Instance.Show(null);
         }
     }
 }

@@ -8,8 +8,9 @@ public class SystemModel : MonoBehaviour
     public float flow;
 
     [Header("Normal (Green) Ranges")]
-    public Vector2 pressureRange = new Vector2(40f, 50f);
-    public Vector2 temperatureRange = new Vector2(30f, 40f);
+    // Mid–scale bands instead of near the max (50)
+    public Vector2 pressureRange = new Vector2(20f, 30f);
+    public Vector2 temperatureRange = new Vector2(25f, 35f);
     public Vector2 flowRange = new Vector2(20f, 30f);
 
     [Header("Operator Controls (0–1)")]
@@ -19,17 +20,29 @@ public class SystemModel : MonoBehaviour
     [Header("System Mode")]
     public bool manualMode = true;
 
-    private void Awake()
+    void Awake()
     {
+        ResetToNormal();
+    }
+
+    public void ResetToNormal()
+    {
+        // “Normal” knob positions
         pumpSpeed = 0.5f;
         valvePosition = 0.5f;
 
-        pressure = 45f;
-        flow = 25f;
-        temperature = 35f;
+        // Start each variable in the middle of its green band
+        pressure = Mid(pressureRange);    // 25
+        temperature = Mid(temperatureRange); // 30
+        flow = Mid(flowRange);        // 25
     }
 
-    private void Update()
+    float Mid(Vector2 range)
+    {
+        return (range.x + range.y) * 0.5f;
+    }
+
+    void Update()
     {
         float dt = Time.deltaTime;
 
@@ -51,9 +64,9 @@ public class SystemModel : MonoBehaviour
 
         if (!manualMode)
         {
-            float safeP = (pressureRange.x + pressureRange.y) * 0.5f;
-            float safeT = (temperatureRange.x + temperatureRange.y) * 0.5f;
-            float safeF = (flowRange.x + flowRange.y) * 0.5f;
+            float safeP = Mid(pressureRange);
+            float safeT = Mid(temperatureRange);
+            float safeF = Mid(flowRange);
 
             pressure = Mathf.Lerp(pressure, safeP, 0.5f * dt);
             temperature = Mathf.Lerp(temperature, safeT, 0.3f * dt);

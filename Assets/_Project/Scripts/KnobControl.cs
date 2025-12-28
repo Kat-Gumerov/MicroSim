@@ -17,9 +17,12 @@ public class KnobControl : MonoBehaviour, IInteractable
     [Header("Interaction")]
     [SerializeField] private float step = 0.1f;
 
+    [Header("Hint Text")]
+    [TextArea(1, 3)]
+    public string hint;
+
     public void Interact()
     {
-        // Click = increase, Shift+Click = decrease
         float direction = Input.GetKey(KeyCode.LeftShift) ? -1f : 1f;
 
         switch (knobType)

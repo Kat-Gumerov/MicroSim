@@ -5,11 +5,16 @@ public class ScenarioManagerB : MonoBehaviour
 {
     [Header("Scenario Settings")]
     public float recordIntervalSeconds = 10f;
-    public int recordsToComplete = 5;
+    public int recordsToComplete = 3;   // set to 3 for your current plan
+
+    [Header("System")]
+    public SystemModel system;
+    public bool ScenarioRunning => scenarioRunning;
+
 
     [Header("UI")]
-    public GameObject instructionPanel;  // <-- new
-    public GameObject scenarioHUD;       // <-- new (Timer + Log + Record)
+    public GameObject instructionPanel;
+    public GameObject scenarioHUD;
     public TextMeshProUGUI timerText;
     public TextMeshProUGUI logText;
 
@@ -26,18 +31,19 @@ public class ScenarioManagerB : MonoBehaviour
 
     void Start()
     {
-        // show instructions first, hide HUD
+        // Show instructions first, hide HUD
         if (instructionPanel != null) instructionPanel.SetActive(true);
         if (scenarioHUD != null) scenarioHUD.SetActive(false);
 
         scenarioRunning = false;
         waitingForRecord = false;
+        recordsDone = 0;
 
         if (logText != null) logText.text = "";
         if (timerText != null) timerText.text = "";
     }
 
-    // called by StartButton
+    // Called by Start button
     public void OnStartScenarioPressed()
     {
         if (instructionPanel != null) instructionPanel.SetActive(false);
@@ -55,6 +61,9 @@ public class ScenarioManagerB : MonoBehaviour
 
         if (logText != null) logText.text = "";
         UpdateTimerUI();
+
+        if (system != null)
+            system.ResetToNormal();        // start from normal/green
 
         if (anomalyController != null)
             anomalyController.BeginAnomalies();
@@ -80,6 +89,12 @@ public class ScenarioManagerB : MonoBehaviour
     {
         if (timerText == null) return;
 
+        if (!scenarioRunning)
+        {
+            timerText.text = "Scenario complete";
+            return;
+        }
+
         if (waitingForRecord)
             timerText.text = "Press RECORD";
         else
@@ -91,9 +106,10 @@ public class ScenarioManagerB : MonoBehaviour
         if (!scenarioRunning || !waitingForRecord) return;
 
         float t = Time.timeSinceLevelLoad;
-
         string line = $"{t:0.0}s | ";
-        bool allGreen = true;
+
+        // System-level truth: are all three in range?
+        bool allGreen = system != null && system.AllInNormalRange();
 
         foreach (var g in gauges)
         {
@@ -101,9 +117,9 @@ public class ScenarioManagerB : MonoBehaviour
 
             float v = g.GetCurrentValue();
             bool green = g.IsInGreenRange();
-            if (!green) allGreen = false;
 
-            line += $"{g.GaugeTypeKind}:{v:0.0} ";
+            // add a * if that specific gauge isn't green
+            line += $"{g.GaugeTypeKind}:{v:0.0}{(green ? "" : "*")} ";
         }
 
         line += allGreen ? "| OK" : "| CHECK";
@@ -132,6 +148,6 @@ public class ScenarioManagerB : MonoBehaviour
     {
         scenarioRunning = false;
         AppendLog("=== Scenario complete ===");
-        if (timerText != null) timerText.text = "Scenario complete";
+        UpdateTimerUI();
     }
 }
