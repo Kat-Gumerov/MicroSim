@@ -11,6 +11,9 @@ public class ScopeAnimator : MonoBehaviour
     private Material mat;
     private Vector2 baseOffset;
 
+    // freeze support
+    [SerializeField] private bool frozen = false;
+
     private void Awake()
     {
         rend = GetComponent<Renderer>();
@@ -24,6 +27,7 @@ public class ScopeAnimator : MonoBehaviour
     private void Update()
     {
         if (mat == null) return;
+        if (frozen) return;   // <-- stop all animation when frozen
 
         float x = baseOffset.x + Time.time * scrollSpeed;
         mat.mainTextureOffset = new Vector2(x, baseOffset.y);
@@ -36,4 +40,11 @@ public class ScopeAnimator : MonoBehaviour
             mat.SetColor("_EmissionColor", baseColor * intensity);
         }
     }
+
+    public void SetFrozen(bool value)
+    {
+        frozen = value;
+    }
+
+    public bool IsFrozen => frozen;
 }

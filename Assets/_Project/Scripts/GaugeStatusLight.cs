@@ -24,12 +24,13 @@ public class StatusLight : MonoBehaviour
     private Renderer rend;
     private Material matInstance;
 
+    [SerializeField] private bool frozen = false;
+
     private void Awake()
     {
         rend = GetComponent<Renderer>();
         if (rend != null)
         {
-            // Instance so we don't tint the shared material
             matInstance = rend.material;
         }
     }
@@ -37,6 +38,7 @@ public class StatusLight : MonoBehaviour
     private void Update()
     {
         if (system == null || matInstance == null) return;
+        if (frozen) return;   // keep whatever color it last had
 
         float value;
         Vector2 range;
@@ -76,4 +78,11 @@ public class StatusLight : MonoBehaviour
         if (matInstance.HasProperty("_EmissionColor"))
             matInstance.SetColor("_EmissionColor", target);
     }
+
+    public void SetFrozen(bool value)
+    {
+        frozen = value;
+    }
+
+    public bool IsFrozen => frozen;
 }

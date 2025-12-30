@@ -34,8 +34,11 @@ public class AnalogGauge : MonoBehaviour
     private float baseY;
     private bool initialized = false;
 
-    // runtime value we expose to other scripts
     private float currentValue;
+
+    // freeze support
+    [SerializeField] private bool frozen = false;
+    private float frozenValue;
 
     private void Awake()
     {
@@ -46,20 +49,29 @@ public class AnalogGauge : MonoBehaviour
     {
         if (system == null) return;
 
-        // read from SystemModel
-        float rawValue = gaugeType switch
+        float rawValue;
+
+        if (frozen)
         {
-            GaugeType.Pressure => system.pressure,
-            GaugeType.Flow => system.flow,
-            GaugeType.Temperature => system.temperature,
-            GaugeType.PumpSpeed => system.pumpSpeed,
-            GaugeType.ValvePosition => system.valvePosition,
-            _ => 0f
-        };
+            rawValue = frozenValue;
+        }
+        else
+        {
+            rawValue = gaugeType switch
+            {
+                GaugeType.Pressure => system.pressure,
+                GaugeType.Flow => system.flow,
+                GaugeType.Temperature => system.temperature,
+                GaugeType.PumpSpeed => system.pumpSpeed,
+                GaugeType.ValvePosition => system.valvePosition,
+                _ => 0f
+            };
+
+            frozenValue = rawValue;
+        }
 
         currentValue = rawValue;
 
-        // map to needle rotation
         float t = Mathf.InverseLerp(minValue, maxValue, rawValue);
         float targetOffset = Mathf.Lerp(minAngleOffset, maxAngleOffset, t);
 
@@ -82,8 +94,6 @@ public class AnalogGauge : MonoBehaviour
         transform.localEulerAngles = e;
     }
 
-    // ===== API used by Scenario B =====
-
     public float GetCurrentValue()
     {
         return currentValue;
@@ -94,6 +104,17 @@ public class AnalogGauge : MonoBehaviour
         return currentValue >= greenMin && currentValue <= greenMax;
     }
 
-    // public read-only access to the enum for logging
     public GaugeType GaugeTypeKind => gaugeType;
+
+    public void SetFrozen(bool value)
+    {
+        if (value && !frozen)
+        {
+            frozenValue = currentValue;
+        }
+
+        frozen = value;
+    }
+
+    public bool IsFrozen => frozen;
 }

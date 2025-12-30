@@ -19,9 +19,20 @@ public class AnomalyController : MonoBehaviour
 
     Coroutine routine;
 
+    // tracking for summary
+    public float pressureAnomalyStartTime { get; private set; } = -1f;
+    public float flowAnomalyStartTime { get; private set; } = -1f;
+
+    public void ResetTracking()
+    {
+        pressureAnomalyStartTime = -1f;
+        flowAnomalyStartTime = -1f;
+    }
+
     public void BeginAnomalies()
     {
         if (routine != null) StopCoroutine(routine);
+        ResetTracking();
         routine = StartCoroutine(AnomalyRoutine());
     }
 
@@ -34,6 +45,9 @@ public class AnomalyController : MonoBehaviour
         // wait until pressure anomaly time
         float wait1 = pressureAnomalyTime - (Time.timeSinceLevelLoad - startTime);
         if (wait1 > 0f) yield return new WaitForSeconds(wait1);
+
+        pressureAnomalyStartTime = Time.timeSinceLevelLoad;
+
         yield return StartCoroutine(DriftValue(
             () => system.pressure,
             v => system.pressure = v,
@@ -44,6 +58,9 @@ public class AnomalyController : MonoBehaviour
         // wait until flow anomaly time
         float wait2 = flowAnomalyTime - (Time.timeSinceLevelLoad - startTime);
         if (wait2 > 0f) yield return new WaitForSeconds(wait2);
+
+        flowAnomalyStartTime = Time.timeSinceLevelLoad;
+
         yield return StartCoroutine(DriftValue(
             () => system.flow,
             v => system.flow = v,
