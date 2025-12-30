@@ -211,24 +211,22 @@ public class ScenarioManagerB : MonoBehaviour
 
         var sb = new StringBuilder();
 
-        sb.AppendLine("Scenario Summary");
-        sb.AppendLine();
         sb.AppendLine("This scenario tested whether the operator could notice small, unexpected changes and stabilize the system without step-by-step instructions.");
         sb.AppendLine();
 
         // --- Record overview ---
         if (hadRecord1)
-            sb.AppendLine($"Record 1 ({record1Time:0.0}s): " +
+            sb.AppendLine($"- Record 1 ({record1Time:0.0}s): " +
                           (record1AllGreen ? "All indicators within normal range." :
                                              "One or more indicators were outside the normal range."));
 
         if (hadRecord2)
-            sb.AppendLine($"Record 2 ({record2Time:0.0}s): " +
+            sb.AppendLine($"- Record 2 ({record2Time:0.0}s): " +
                           (record2AllGreen ? "System recorded in a normal range." :
                                              "System still showed abnormal values."));
 
         if (hadRecord3)
-            sb.AppendLine($"Record 3 ({record3Time:0.0}s): " +
+            sb.AppendLine($"- Record 3 ({record3Time:0.0}s): " +
                           (record3AllGreen ? "System recorded in a stable range at the end of the scenario." :
                                              "System was not fully stabilized at the end of the scenario."));
 
