@@ -146,7 +146,8 @@ public class ScenarioManagerB : MonoBehaviour
         }
 
         line += allGreen ? "| OK" : "| CHECK";
-        AppendLog(line);
+        AppendLog(line + "\n");
+
 
         int recordIndex = recordsDone + 1;
         switch (recordIndex)
