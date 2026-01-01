@@ -5,6 +5,7 @@ public class AnomalyController : MonoBehaviour
 {
     [Header("References")]
     public SystemModel system;
+    public ScenarioManagerB scenarioManager;
 
     [Header("Anomaly Timing (seconds from scenario start)")]
     public float pressureAnomalyTime = 15f;
@@ -15,13 +16,17 @@ public class AnomalyController : MonoBehaviour
     public float flowAnomalyValue = 5f;      // low
 
     [Header("Drift Settings")]
-    public float driftDuration = 5f;         // how long it takes to drift
+    public float driftDuration = 5f;
 
     Coroutine routine;
 
-    // tracking for summary
     public float pressureAnomalyStartTime { get; private set; } = -1f;
     public float flowAnomalyStartTime { get; private set; } = -1f;
+
+    float Now()
+    {
+        return (scenarioManager != null) ? scenarioManager.ElapsedTime : Time.timeSinceLevelLoad;
+    }
 
     public void ResetTracking()
     {
@@ -33,6 +38,13 @@ public class AnomalyController : MonoBehaviour
     {
         if (routine != null) StopCoroutine(routine);
         ResetTracking();
+
+        if (system != null)
+        {
+            system.lockPressure = false;
+            system.lockFlow = false;
+        }
+
         routine = StartCoroutine(AnomalyRoutine());
     }
 
@@ -40,13 +52,10 @@ public class AnomalyController : MonoBehaviour
     {
         if (system == null) yield break;
 
-        float startTime = Time.timeSinceLevelLoad;
-
-        // wait until pressure anomaly time
-        float wait1 = pressureAnomalyTime - (Time.timeSinceLevelLoad - startTime);
+        float wait1 = pressureAnomalyTime - Now();
         if (wait1 > 0f) yield return new WaitForSeconds(wait1);
 
-        pressureAnomalyStartTime = Time.timeSinceLevelLoad;
+        pressureAnomalyStartTime = Now();
 
         yield return StartCoroutine(DriftValue(
             () => system.pressure,
@@ -55,11 +64,13 @@ public class AnomalyController : MonoBehaviour
             driftDuration
         ));
 
-        // wait until flow anomaly time
-        float wait2 = flowAnomalyTime - (Time.timeSinceLevelLoad - startTime);
+        if (system != null)
+            system.lockPressure = true;   // keeps pressure “bad” until the operator moves controls
+
+        float wait2 = flowAnomalyTime - Now();
         if (wait2 > 0f) yield return new WaitForSeconds(wait2);
 
-        flowAnomalyStartTime = Time.timeSinceLevelLoad;
+        flowAnomalyStartTime = Now();
 
         yield return StartCoroutine(DriftValue(
             () => system.flow,
@@ -67,6 +78,9 @@ public class AnomalyController : MonoBehaviour
             flowAnomalyValue,
             driftDuration
         ));
+
+        if (system != null)
+            system.lockFlow = true;       // same idea for flow
     }
 
     IEnumerator DriftValue(System.Func<float> getter, System.Action<float> setter, float target, float duration)

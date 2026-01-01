@@ -8,7 +8,6 @@ public class SystemModel : MonoBehaviour
     public float flow;
 
     [Header("Normal (Green) Ranges")]
-    // Mid–scale bands instead of near the max (50)
     public Vector2 pressureRange = new Vector2(20f, 30f);
     public Vector2 temperatureRange = new Vector2(25f, 35f);
     public Vector2 flowRange = new Vector2(20f, 30f);
@@ -20,6 +19,13 @@ public class SystemModel : MonoBehaviour
     [Header("System Mode")]
     public bool manualMode = true;
 
+    [Header("Anomaly Overrides")]
+    public bool lockPressure;
+    public bool lockFlow;
+
+    float prevPumpSpeed;
+    float prevValvePosition;
+
     void Awake()
     {
         ResetToNormal();
@@ -27,14 +33,18 @@ public class SystemModel : MonoBehaviour
 
     public void ResetToNormal()
     {
-        // “Normal” knob positions
         pumpSpeed = 0.5f;
         valvePosition = 0.5f;
 
-        // Start each variable in the middle of its green band
-        pressure = Mid(pressureRange);    // 25
-        temperature = Mid(temperatureRange); // 30
-        flow = Mid(flowRange);        // 25
+        pressure = Mid(pressureRange);
+        temperature = Mid(temperatureRange);
+        flow = Mid(flowRange);
+
+        lockPressure = false;
+        lockFlow = false;
+
+        prevPumpSpeed = pumpSpeed;
+        prevValvePosition = valvePosition;
     }
 
     float Mid(Vector2 range)
@@ -45,6 +55,21 @@ public class SystemModel : MonoBehaviour
     void Update()
     {
         float dt = Time.deltaTime;
+
+        // if operator moves controls while an anomaly is locked, unlock it
+        if (lockPressure || lockFlow)
+        {
+            float pumpDelta = Mathf.Abs(pumpSpeed - prevPumpSpeed);
+            float valveDelta = Mathf.Abs(valvePosition - prevValvePosition);
+            if (pumpDelta > 0.05f || valveDelta > 0.05f)
+            {
+                lockPressure = false;
+                lockFlow = false;
+            }
+        }
+
+        prevPumpSpeed = pumpSpeed;
+        prevValvePosition = valvePosition;
 
         float baseFlow = Mathf.Lerp(5f, 45f, valvePosition);
         float pumpFlowBoost = Mathf.Lerp(-2f, 5f, pumpSpeed);
@@ -58,8 +83,12 @@ public class SystemModel : MonoBehaviour
         float cooling = Mathf.Lerp(0f, 8f, valvePosition);
         float targetTemp = pumpHeat - cooling;
 
-        pressure = Mathf.Lerp(pressure, targetPressure, 3f * dt);
-        flow = Mathf.Lerp(flow, targetFlow, 3f * dt);
+        if (!lockPressure)
+            pressure = Mathf.Lerp(pressure, targetPressure, 3f * dt);
+
+        if (!lockFlow)
+            flow = Mathf.Lerp(flow, targetFlow, 3f * dt);
+
         temperature = Mathf.Lerp(temperature, targetTemp, 3f * dt);
 
         if (!manualMode)
@@ -68,9 +97,13 @@ public class SystemModel : MonoBehaviour
             float safeT = Mid(temperatureRange);
             float safeF = Mid(flowRange);
 
-            pressure = Mathf.Lerp(pressure, safeP, 0.5f * dt);
+            if (!lockPressure)
+                pressure = Mathf.Lerp(pressure, safeP, 0.5f * dt);
+
+            if (!lockFlow)
+                flow = Mathf.Lerp(flow, safeF, 0.5f * dt);
+
             temperature = Mathf.Lerp(temperature, safeT, 0.3f * dt);
-            flow = Mathf.Lerp(flow, safeF, 0.5f * dt);
         }
 
         pressure = Mathf.Clamp(pressure, 0f, 50f);

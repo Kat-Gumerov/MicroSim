@@ -1,11 +1,12 @@
 using UnityEngine;
 using TMPro;
 using System.Text;
+using System.Collections;
 
 public class ScenarioManagerB : MonoBehaviour
 {
     [Header("Scenario Settings")]
-    public float recordIntervalSeconds = 10f;
+    public float recordIntervalSeconds = 15f;
     public int recordsToComplete = 3;
 
     [Header("System")]
@@ -34,7 +35,9 @@ public class ScenarioManagerB : MonoBehaviour
     int recordsDone;
     bool scenarioRunning;
 
-    // record tracking for summary
+    float scenarioStartTime;
+    public float ElapsedTime => scenarioRunning ? Time.time - scenarioStartTime : 0f;
+
     float record1Time, record2Time, record3Time;
     bool record1AllGreen, record2AllGreen, record3AllGreen;
     bool hadRecord1, hadRecord2, hadRecord3;
@@ -53,13 +56,13 @@ public class ScenarioManagerB : MonoBehaviour
         if (timerText != null) timerText.text = "";
     }
 
-    // Called by Start button
     public void OnStartScenarioPressed()
     {
         if (instructionPanel != null) instructionPanel.SetActive(false);
         if (scenarioHUD != null) scenarioHUD.SetActive(true);
         if (summaryPanel != null) summaryPanel.SetActive(false);
 
+        scenarioStartTime = Time.time;
         StartScenario();
     }
 
@@ -76,7 +79,7 @@ public class ScenarioManagerB : MonoBehaviour
         UpdateTimerUI();
 
         if (system != null)
-            system.ResetToNormal();        // start from normal/green
+            system.ResetToNormal();
 
         if (panelFreezeAnomaly != null)
         {
@@ -127,7 +130,7 @@ public class ScenarioManagerB : MonoBehaviour
     {
         if (!scenarioRunning || !waitingForRecord) return;
 
-        float t = Time.timeSinceLevelLoad;
+        float t = ElapsedTime;
         string line = $"{t:0.0}s | ";
 
         bool allGreen = system != null && system.AllInNormalRange();
@@ -139,14 +142,12 @@ public class ScenarioManagerB : MonoBehaviour
             float v = g.GetCurrentValue();
             bool green = g.IsInGreenRange();
 
-            // add a * if that specific gauge isn't green
             line += $"{g.GaugeTypeKind}:{v:0.0}{(green ? "" : "*")} ";
         }
 
         line += allGreen ? "| OK" : "| CHECK";
         AppendLog(line);
 
-        // store info per record (1..3)
         int recordIndex = recordsDone + 1;
         switch (recordIndex)
         {
@@ -172,12 +173,8 @@ public class ScenarioManagerB : MonoBehaviour
         timer = recordIntervalSeconds;
         UpdateTimerUI();
 
-        // After the second record, trigger the panel freeze anomaly
-        // so the third interval is experienced with a frozen panel.
         if (recordsDone == 2 && panelFreezeAnomaly != null && !panelFreezeAnomaly.Active)
-        {
             panelFreezeAnomaly.Trigger();
-        }
 
         if (recordsDone >= recordsToComplete)
             EndScenario();
@@ -199,6 +196,13 @@ public class ScenarioManagerB : MonoBehaviour
         AppendLog("=== Scenario complete ===");
         UpdateTimerUI();
 
+        // wait a moment so the user can see the final log line
+        StartCoroutine(ShowSummaryAfterDelay());
+    }
+
+    IEnumerator ShowSummaryAfterDelay()
+    {
+        yield return new WaitForSeconds(3f);
         ShowSummary();
     }
 
@@ -214,7 +218,6 @@ public class ScenarioManagerB : MonoBehaviour
         sb.AppendLine("This scenario tested whether the operator could notice small, unexpected changes and stabilize the system without step-by-step instructions.");
         sb.AppendLine();
 
-        // --- Record overview ---
         if (hadRecord1)
             sb.AppendLine($"- Record 1 ({record1Time:0.0}s): " +
                           (record1AllGreen ? "All indicators within normal range." :
@@ -230,37 +233,46 @@ public class ScenarioManagerB : MonoBehaviour
                           (record3AllGreen ? "System recorded in a stable range at the end of the scenario." :
                                              "System was not fully stabilized at the end of the scenario."));
 
-        // --- Anomaly 1: Gradual drift (pressure + flow) ---
         sb.AppendLine();
         sb.AppendLine("Anomaly 1 – Gradual value drift:");
 
         if (anomalyController != null && anomalyController.pressureAnomalyStartTime >= 0f)
-        {
             sb.AppendLine($"- Pressure began drifting away from normal at about {anomalyController.pressureAnomalyStartTime:0.0}s, moving toward a high value ({anomalyController.pressureAnomalyValue:0.0}).");
-        }
 
         if (anomalyController != null && anomalyController.flowAnomalyStartTime >= 0f)
-        {
             sb.AppendLine($"- Flow began drifting away from normal at about {anomalyController.flowAnomalyStartTime:0.0}s, moving toward a low value ({anomalyController.flowAnomalyValue:0.0}).");
+
+        if (system != null)
+        {
+            sb.AppendLine();
+            sb.AppendLine("Temperature response:");
+
+            bool tempInRangeEnd = system.TemperatureInRange();
+
+            if (anomalyController != null && anomalyController.pressureAnomalyStartTime >= 0f)
+            {
+                if (tempInRangeEnd)
+                    sb.AppendLine("- Temperature rose along with the pressure drift but was brought back into its normal range by the end of the scenario.");
+                else
+                    sb.AppendLine("- Temperature rose along with the pressure drift and was not fully returned to its normal range by the end of the scenario.");
+            }
+            else
+            {
+                if (tempInRangeEnd)
+                    sb.AppendLine("- Temperature remained within its normal range throughout the scenario.");
+                else
+                    sb.AppendLine("- Temperature moved outside its normal range during the scenario.");
+            }
         }
 
         if (hadRecord2)
         {
             if (record2AllGreen)
-            {
-                sb.AppendLine("- By the second record, all indicators were back in the normal range. This suggests the drift was noticed and corrected before it developed into a larger problem.");
-            }
+                sb.AppendLine("- By the second record, all indicators were back in the normal range.");
             else
-            {
-                sb.AppendLine("- At the time of the second record, at least one indicator remained out of range. This suggests the gradual drift was not fully recognized or corrected yet.");
-            }
-        }
-        else
-        {
-            sb.AppendLine("- Not enough data was recorded to evaluate the operator’s response to the drift.");
+                sb.AppendLine("- At the time of the second record, at least one indicator remained out of range.");
         }
 
-        // --- Anomaly 2: Frozen panel ---
         if (panelFreezeAnomaly != null && panelFreezeAnomaly.freezeStartTime >= 0f)
         {
             sb.AppendLine();
@@ -270,15 +282,24 @@ public class ScenarioManagerB : MonoBehaviour
             if (panelFreezeAnomaly.freezeClearTime >= 0f)
             {
                 float responseTime = panelFreezeAnomaly.freezeClearTime - panelFreezeAnomaly.freezeStartTime;
-                sb.AppendLine($"- The operator switched to AUTO at approximately {panelFreezeAnomaly.freezeClearTime:0.0}s (response time ≈ {responseTime:0.0}s).");
-                sb.AppendLine("- Switching to AUTO is a conservative action that restabilizes the system when the panel stops providing reliable feedback, showing that the operator expected something unexpected and moved the system to a safe state.");
+                sb.AppendLine($"- AUTO enabled at approximately {panelFreezeAnomaly.freezeClearTime:0.0}s (response time ≈ {responseTime:0.0}s).");
             }
             else
-            {
-                sb.AppendLine("- No AUTO-mode stabilization was applied while the panel was frozen, suggesting the loss of indication may not have been fully recognized.");
-            }
+                sb.AppendLine("- No AUTO-mode stabilization occurred while the panel was frozen.");
         }
 
         summaryText.text = sb.ToString();
+    }
+
+    public void OnExitSummaryPressed()
+    {
+        if (summaryPanel != null)
+            summaryPanel.SetActive(false);
+
+        var focus = FindObjectOfType<PanelFocusManager>();
+        if (focus != null)
+            focus.EnterPlayerMode();
+        else
+            Debug.LogWarning("OnExitSummaryPressed: PanelFocusManager not found in scene.");
     }
 }
