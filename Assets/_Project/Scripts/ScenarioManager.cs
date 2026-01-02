@@ -278,16 +278,28 @@ public class ScenarioManagerB : MonoBehaviour
         {
             sb.AppendLine();
             sb.AppendLine("Anomaly 2 – Loss of indication (frozen panel):");
-            sb.AppendLine($"- Panel indications froze at approximately {panelFreezeAnomaly.freezeStartTime:0.0}s.");
+
+            // Convert from global time to scenario-relative time
+            float freezeElapsed = panelFreezeAnomaly.freezeStartTime - scenarioStartTime;
+            if (freezeElapsed < 0f) freezeElapsed = 0f;
 
             if (panelFreezeAnomaly.freezeClearTime >= 0f)
             {
-                float responseTime = panelFreezeAnomaly.freezeClearTime - panelFreezeAnomaly.freezeStartTime;
-                sb.AppendLine($"- AUTO enabled at approximately {panelFreezeAnomaly.freezeClearTime:0.0}s (response time ≈ {responseTime:0.0}s).");
+                float clearElapsed = panelFreezeAnomaly.freezeClearTime - scenarioStartTime;
+                if (clearElapsed < 0f) clearElapsed = 0f;
+
+                float responseTime = clearElapsed - freezeElapsed;
+
+                sb.AppendLine($"- Panel indications froze at approximately {freezeElapsed:0.0}s.");
+                sb.AppendLine($"- AUTO enabled at approximately {clearElapsed:0.0}s (response time ≈ {responseTime:0.0}s).");
             }
             else
+            {
+                sb.AppendLine($"- Panel indications froze at approximately {freezeElapsed:0.0}s.");
                 sb.AppendLine("- No AUTO-mode stabilization occurred while the panel was frozen.");
+            }
         }
+
 
         summaryText.text = sb.ToString();
     }
